@@ -1,7 +1,7 @@
-"""Mahi Jarvis - voice-first desktop assistant.
+"""Mahi Jarvis — polished voice-first desktop assistant.
 
-Run locally on the laptop. Speak a command; Jarvis listens, performs the
-requested action, and replies with speech. No chat UI is required.
+The assistant is intentionally allow-listed for laptop actions. This avoids
+turning every misunderstood sentence into an arbitrary shell command.
 """
 
 import os
@@ -15,9 +15,26 @@ import speech_recognition as sr
 
 
 class MahiJarvis:
-    def __init__(self):
-        self.recognizer = sr.Recognizer()
-        self.tts = pyttsx3.init()
+    SITES = {
+        "youtube": "https://www.youtube.com/",
+        "spotify": "https://open.spotify.com/",
+        "google": "https://www.google.com/",
+        "github": "https://github.com/",
+        "instagram": "https://www.instagram.com/",
+    }
+
+    APPS_WINDOWS = {
+        "notepad": "notepad.exe",
+        "calculator": "calc.exe",
+        "calc": "calc.exe",
+        "paint": "mspaint.exe",
+        "file explorer": "explorer.exe",
+        "explorer": "explorer.exe",
+    }
+
+    def __init__(self, recognizer=None, tts=None):
+        self.recognizer = recognizer or sr.Recognizer()
+        self.tts = tts or pyttsx3.init()
         self.tts.setProperty("rate", 175)
         self.running = True
 
@@ -28,16 +45,24 @@ class MahiJarvis:
 
     def listen(self):
         with sr.Microphone() as source:
-            self.recognizer.adjust_for_ambient_noise(source, duration=0.6)
+            self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
             print("Listening...")
             audio = self.recognizer.listen(source, timeout=8, phrase_time_limit=12)
         try:
             return self.recognizer.recognize_google(audio, language="en-IN")
         except sr.UnknownValueError:
+            self.speak("I didn't catch that. Please say it again.")
             return ""
         except sr.RequestError:
             self.speak("Speech recognition is unavailable right now.")
             return ""
+
+    def open_url(self, url, message):
+        try:
+            webbrowser.open(url)
+            self.speak(message)
+        except Exception:
+            self.speak("I couldn't open that right now.")
 
     def play_song(self, song, service="youtube"):
         song = song.strip()
@@ -50,38 +75,33 @@ class MahiJarvis:
         else:
             url = "https://www.youtube.com/results?search_query=" + quote_plus(song)
             site = "YouTube"
-        webbrowser.open(url)
-        self.speak(f"Opening {song} on {site}.")
+        self.open_url(url, f"Opening {song} on {site}.")
 
     def open_target(self, target):
         target = target.strip()
-        sites = {
-            "youtube": "https://www.youtube.com/",
-            "spotify": "https://open.spotify.com/",
-            "google": "https://www.google.com/",
-            "github": "https://github.com/",
-            "instagram": "https://www.instagram.com/",
-        }
-        if target.lower() in sites:
-            webbrowser.open(sites[target.lower()])
-            self.speak(f"Opening {target}.")
+        key = target.lower()
+        if key in self.SITES:
+            self.open_url(self.SITES[key], f"Opening {target}.")
+            return
+        if key in self.APPS_WINDOWS and platform.system() == "Windows":
+            try:
+                subprocess.Popen(self.APPS_WINDOWS[key], shell=False)
+                self.speak(f"Opening {target}.")
+            except OSError:
+                self.speak(f"I couldn't open {target}.")
             return
         if target.startswith(("http://", "https://")):
-            webbrowser.open(target)
-            self.speak("Opening the website.")
+            self.open_url(target, "Opening the website.")
             return
-        self.run_command(target)
+        self.speak("I can open supported websites and common Windows apps. Try saying open YouTube or open calculator.")
 
-    def run_command(self, command):
-        command = command.strip()
-        if not command:
-            self.speak("Please tell me what to run.")
+    def search(self, query):
+        query = query.strip()
+        if not query:
+            self.speak("Tell me what you want to search.")
             return
-        try:
-            subprocess.Popen(command, shell=True)
-            self.speak("Done. I started that command.")
-        except Exception as exc:
-            self.speak(f"I couldn't start it: {exc}")
+        self.open_url("https://www.google.com/search?q=" + quote_plus(query),
+                      f"Searching for {query}.")
 
     def handle(self, request):
         text = request.strip()
@@ -90,7 +110,7 @@ class MahiJarvis:
             self.speak("I didn't catch that. Please say the command again.")
             return
 
-        if lower in {"exit", "quit", "shutdown jarvis", "close jarvis", "goodbye"}:
+        if lower in {"exit", "quit", "shutdown jarvis", "close jarvis", "goodbye", "stop listening"}:
             self.speak("Goodbye. Shutting down.")
             self.running = False
             return
@@ -98,12 +118,11 @@ class MahiJarvis:
         if lower.startswith("play "):
             rest = text[5:].strip()
             low = rest.lower()
-            if " on spotify" in low:
-                self.play_song(rest[:low.rfind(" on spotify")], "spotify")
-            elif " on youtube" in low:
-                self.play_song(rest[:low.rfind(" on youtube")], "youtube")
-            else:
-                self.play_song(rest)
+            for marker, service in ((" on spotify", "spotify"), (" on youtube", "youtube")):
+                if marker in low:
+                    self.play_song(rest[:low.rfind(marker)], service)
+                    return
+            self.play_song(rest)
             return
 
         if lower.startswith("song "):
@@ -115,25 +134,18 @@ class MahiJarvis:
             return
 
         if lower.startswith("search "):
-            query = text[7:].strip()
-            if query:
-                webbrowser.open("https://www.google.com/search?q=" + quote_plus(query))
-                self.speak(f"Searching for {query}.")
-            else:
-                self.speak("Tell me what you want to search.")
+            self.search(text[7:])
             return
 
-        if lower.startswith("command "):
-            self.run_command(text[8:])
+        if lower in {"what can you do", "help", "commands"}:
+            self.speak("You can ask me to play a song, open a website or Windows app, search Google, or stop listening.")
             return
 
-        if lower.startswith("run "):
-            self.run_command(text[4:])
+        if lower in {"hello", "hi", "hey", "good morning", "good evening"}:
+            self.speak("Hello! I'm Mahi. What would you like me to do?")
             return
 
-        # Voice command-first behavior: any other spoken phrase is treated
-        # as the user's requested laptop command.
-        self.run_command(text)
+        self.speak("I can help with songs, websites, Google searches, and supported laptop apps. Please say open, play, or search followed by what you need.")
 
     def start(self):
         self.speak("Hi, I'm Mahi. I'm ready for your voice command.")
@@ -148,7 +160,7 @@ class MahiJarvis:
             except KeyboardInterrupt:
                 self.running = False
             except OSError:
-                self.speak("I can't access the microphone. Please check the microphone permission.")
+                self.speak("I can't access the microphone. Please check microphone permission.")
                 self.running = False
 
 
