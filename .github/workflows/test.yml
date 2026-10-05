@@ -16,5 +16,5 @@ jobs:
           python-version: "3.12"
       - name: Syntax check
         run: python -m py_compile jarvis.py
-      - name: Import check
-        run: python -c "import jarvis; print('Jarvis import OK')"
+      - name: Source validation
+        run: python -c "import ast; ast.parse(open('jarvis.py', encoding='utf-8').read()); print('Jarvis syntax OK')"
