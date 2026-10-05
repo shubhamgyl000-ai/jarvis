@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mahi JARVIS — Sphere UI</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 45%,#162238 0,#070b13 38%,#02040a 75%);color:#eaf6ff;font-family:Segoe UI,Arial,sans-serif;display:grid;place-items:center;overflow:hidden}
+.app{text-align:center;width:min(900px,94vw);padding:30px}.brand{font-size:28px;letter-spacing:7px;font-weight:700}.status{margin-top:8px;color:#83d9ff;font-size:14px;letter-spacing:2px}
+.sphere-wrap{position:relative;width:360px;height:360px;margin:55px auto 35px;display:grid;place-items:center}
+.sphere{width:230px;height:230px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#eaffff 0,#8eeaff 8%,#167da5 28%,#071c32 62%,#02050c 100%);box-shadow:0 0 25px #48dfff,0 0 75px #128dcc,0 0 150px #07517e,inset -20px -25px 55px #000;animation:float 4s ease-in-out infinite}
+.ring{position:absolute;border:2px solid rgba(92,220,255,.65);border-radius:50%;transform:rotateX(67deg);box-shadow:0 0 18px #31d9ff;animation:spin 5s linear infinite}.r1{width:310px;height:115px}.r2{width:350px;height:145px;animation-duration:8s;animation-direction:reverse}.r3{width:270px;height:320px;transform:rotateY(68deg);animation-duration:7s}
+.core{position:absolute;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 25px 8px #7ceaff}
+.panel{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.btn{border:1px solid #2a9fc7;background:rgba(10,35,55,.65);color:#dff8ff;border-radius:24px;padding:11px 20px;cursor:pointer}.btn:hover{background:#123b55;box-shadow:0 0 18px #1599c5}.hint{margin-top:22px;color:#7894a6;font-size:13px}
+@keyframes spin{to{transform:rotateX(67deg) rotateZ(360deg)}}@keyframes float{50%{transform:translateY(-10px) scale(1.025)}}
+</style></head>
+<body><main class="app"><div class="brand">MAHI JARVIS</div><div id="status" class="status">● ONLINE · VOICE READY</div>
+<div class="sphere-wrap"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="sphere"></div><div class="core"></div></div>
+<div class="panel"><button class="btn" onclick="speak('I am online. How can I help you?')">Activate Mahi</button><button class="btn" onclick="listen()">🎙 Start Listening</button><button class="btn" onclick="location.href='index.html'">Open Web Assistant</button></div>
+<div class="hint">Voice UI • Animated holographic sphere • Local laptop control runs through <b>jarvis_pro.py</b></div></main>
+<script>
+function speak(t){if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t))}}
+function listen(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){speak('Voice recognition is not supported in this browser.');return}const r=new R();r.lang='en-IN';r.onstart=()=>status.textContent='● LISTENING · SPEAK NOW';r.onend=()=>status.textContent='● ONLINE · VOICE READY';r.onresult=e=>{const c=e.results[0][0].transcript.toLowerCase();status.textContent='● HEARD · '+c;speak('You said '+c);if(c.startsWith('search '))open('https://www.google.com/search?q='+encodeURIComponent(c.slice(7)),'_blank');else if(c.includes('youtube'))open('https://youtube.com','_blank');};r.start()}
+const status=document.getElementById('status');
+</script></body></html>
